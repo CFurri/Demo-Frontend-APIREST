@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="pizza_primary">#D84315</color> <color name="pizza_on_primary">#FFFFFF</color>
+    <color name="pizza_secondary">#FFAB91</color>
+    <color name="pizza_background">#FFF8E1</color> <color name="pizza_surface">#FFFFFF</color>
+    <color name="text_primary">#212121</color>
 </resources>

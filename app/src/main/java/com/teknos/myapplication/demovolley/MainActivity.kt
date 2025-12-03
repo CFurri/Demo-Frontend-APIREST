@@ -2,37 +2,36 @@ package com.teknos.myapplication.demovolley
 
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
-import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.android.volley.Request
 import com.android.volley.RequestQueue
 import com.android.volley.toolbox.JsonArrayRequest
-import com.android.volley.toolbox.JsonObjectRequest // IMPORTANT: Request per POST
+import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.textfield.TextInputEditText
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
-    // 1. URL GET: Per llegir la llista (La que ja tens de Mocky)
-    private val URL_GET = "http://10.0.2.2:8081/api/pizzas" // <--- POSA LA TEVA URL DE MOCKY AQUÍ
+    // --- CONFIG ---
+    private val URL_GET = "http://10.0.2.2:8081/api/pizzas"
+    private val URL_POST = "http://10.0.2.2:8081/api/pizzas"
 
-    // 2. URL POST: Per a la demo amb Mocky, podem fer servir la mateixa o una nova que retorni { "status": "ok" }
-    // Quan tingueu el servidor del company, serà la mateixa (ex: .../api/pizzas)
-    private val URL_POST = "http://10.0.2.2:8081/api/pizzas" // <--- POSA LA MATEIXA URL DE MOMENT
-
-    private lateinit var etNom: EditText
-    private lateinit var etPreu: EditText
-    private lateinit var etIngredients: EditText
-    private lateinit var btnGuardar: Button
-    private lateinit var btnCarregar: Button
-    private lateinit var txtResultat: TextView
-    private lateinit var txtStatus: TextView
+    // --- UI ELEMENTS ---
+    private lateinit var containerPizzas: LinearLayout
+    private lateinit var progressBar: LinearProgressIndicator
+    private lateinit var fabAdd: ExtendedFloatingActionButton
 
     private val queue: RequestQueue by lazy { Volley.newRequestQueue(this) }
 
@@ -40,113 +39,137 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Vinculem vistes
-        etNom = findViewById(R.id.etNom)
-        etPreu = findViewById(R.id.etPreu)
-        etIngredients = findViewById(R.id.etIngredients)
-        btnGuardar = findViewById(R.id.btnGuardar)
-        btnCarregar = findViewById(R.id.btnCarregar)
-        txtResultat = findViewById(R.id.txtResultat)
-        txtStatus = findViewById(R.id.txtStatus)
+        // Bind Views
+        containerPizzas = findViewById(R.id.containerPizzas)
+        progressBar = findViewById(R.id.progressBar)
+        fabAdd = findViewById(R.id.fabAdd)
 
-        // Listener del botó GET
-        btnCarregar.setOnClickListener {
-            obtenirLlistaPizzes()
+        // FAB Click -> Open the "Add Pizza" Sheet
+        fabAdd.setOnClickListener {
+            showAddPizzaBottomSheet()
         }
 
-        // Listener del botó POST
-        btnGuardar.setOnClickListener {
-            enviarNovaPizza()
-        }
-
+        // Initial Load
         obtenirLlistaPizzes()
     }
 
-    // FUNCIÓ GET (LLEGIR)
+    // --- LOGIC: GET DATA ---
     private fun obtenirLlistaPizzes() {
-        txtStatus.text = "Carregant llista..."
+        setLoading(true)
+
+        // Clear previous list to avoid duplicates
+        containerPizzas.removeAllViews()
 
         val peticio = JsonArrayRequest(Request.Method.GET, URL_GET, null,
             { response ->
-                txtStatus.text = "Llista actualitzada!"
+                setLoading(false)
                 mostrarLlista(response)
             },
             { error ->
-                txtStatus.text = "Error al carregar"
-                Toast.makeText(this, "Error GET: ${error.message}", Toast.LENGTH_SHORT).show()
-                Log.i("ttt"," ${error.message}");
+                setLoading(false)
+                Toast.makeText(this, "Error de connexió", Toast.LENGTH_SHORT).show()
+                Log.e("VOLLEY", "Error: ${error.message}")
             }
         )
         queue.add(peticio)
     }
 
-    // FUNCIÓ POST (ESCRIURE)
-    private fun enviarNovaPizza() {
-        val nom = etNom.text.toString()
-        val preuString = etPreu.text.toString()
-        val ingredients = etIngredients.text.toString()
-
-        if (nom.isEmpty() || preuString.isEmpty()) {
-            Toast.makeText(this, "Omple els camps obligatoris!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        txtStatus.text = "Enviant dades al servidor..."
-
-        // 1. Creem l'objecte JSON amb les dades (El "Body" de la petició)
-        val jsonBody = JSONObject()
-        try {
-            jsonBody.put("nom", nom)
-            jsonBody.put("preu", preuString.toDouble())
-            jsonBody.put("ingredients", ingredients)
-        } catch (e: JSONException) {
-            e.printStackTrace()
-        }
-
-        // 2. Creem la petició POST
-        // Nota: Fem servir JsonObjectRequest (no Array) perquè enviem un objecte { }
-        val peticioPost = JsonObjectRequest(Request.Method.POST, URL_POST, jsonBody,
-            { response ->
-                // ÈXIT (200 OK)
-                txtStatus.text = "Guardat amb èxit!"
-                Toast.makeText(this, "Pizza enviada al núvol!", Toast.LENGTH_LONG).show()
-
-                // Netegem el formulari
-                etNom.text.clear()
-                etPreu.text.clear()
-                etIngredients.text.clear()
-
-
-                // Afegim manualment la pizza al textview
-                val textActual = txtResultat.text.toString()
-                val novaLinia = "\n[NOVA] 🍕 ${nom.uppercase()} (${preuString}€)\n-----------------"
-                txtResultat.text = novaLinia + textActual
-            },
-            { error ->
-                // ERROR
-                txtStatus.text = "Error al guardar"
-                Toast.makeText(this, "Error POST: ${error.message}", Toast.LENGTH_LONG).show()
-
-            }
-        )
-
-        queue.add(peticioPost)
-    }
-
+    // --- LOGIC: SHOW DATA (Expressive Cards) ---
     private fun mostrarLlista(jsonArray: JSONArray) {
-        val sb = StringBuilder()
         try {
+            // If empty
+            if (jsonArray.length() == 0) {
+                Toast.makeText(this, "No hi ha pizzes encara", Toast.LENGTH_SHORT).show()
+                return
+            }
+
             for (i in 0 until jsonArray.length()) {
                 val pizza = jsonArray.getJSONObject(i)
                 val nom = pizza.optString("nom", "Sense nom")
                 val preu = pizza.optDouble("preu", 0.0)
                 val ingredients = pizza.optString("ingredients", "-")
 
-                sb.append("🍕 ${nom.uppercase()}\n")
-                sb.append("   💰 $preu € | 📝 $ingredients\n")
-                sb.append("--------------------------------------\n")
+                // Inflate the Card Layout
+                val cardView = LayoutInflater.from(this).inflate(R.layout.item_pizza_card, containerPizzas, false)
+
+                // Fill Data
+                cardView.findViewById<TextView>(R.id.tvNomPizza).text = nom.uppercase()
+                cardView.findViewById<TextView>(R.id.tvIngredients).text = ingredients
+                cardView.findViewById<TextView>(R.id.chipPreu).text = "$preu €"
+
+                // Add to container with animation
+                containerPizzas.addView(cardView)
             }
-            txtResultat.text = sb.toString()
+        } catch (e: JSONException) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- LOGIC: INPUT FORM (Bottom Sheet) ---
+    private fun showAddPizzaBottomSheet() {
+        // 1. Inflate the bottom sheet layout
+        val dialog = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.dialog_add_pizza, null)
+        dialog.setContentView(view)
+
+        // 2. Bind elements inside the sheet
+        val etNom = view.findViewById<TextInputEditText>(R.id.etNomSheet)
+        val etPreu = view.findViewById<TextInputEditText>(R.id.etPreuSheet)
+        val etIng = view.findViewById<TextInputEditText>(R.id.etIngredientsSheet)
+        val btnSave = view.findViewById<Button>(R.id.btnSaveSheet)
+
+        // 3. Button Action
+        btnSave.setOnClickListener {
+            val nom = etNom.text.toString()
+            val preuString = etPreu.text.toString()
+            val ingredients = etIng.text.toString()
+
+            if (nom.isNotEmpty() && preuString.isNotEmpty()) {
+                enviarNovaPizza(nom, preuString, ingredients)
+                dialog.dismiss() // Close the sheet
+            } else {
+                etNom.error = "Obligatori"
+            }
+        }
+
+        dialog.show()
+    }
+
+    // --- LOGIC: POST DATA ---
+    private fun enviarNovaPizza(nom: String, preu: String, ingredients: String) {
+        setLoading(true)
+
+        val jsonBody = JSONObject()
+        try {
+            jsonBody.put("nom", nom)
+            jsonBody.put("preu", preu.toDouble())
+            jsonBody.put("ingredients", ingredients)
         } catch (e: JSONException) { e.printStackTrace() }
+
+        val peticioPost = JsonObjectRequest(Request.Method.POST, URL_POST, jsonBody,
+            { response ->
+                setLoading(false)
+                Toast.makeText(this, "Pizza guardada!", Toast.LENGTH_SHORT).show()
+                // Refresh list automatically to show the new item
+                obtenirLlistaPizzes()
+            },
+            { error ->
+                setLoading(false)
+                Toast.makeText(this, "Error al guardar", Toast.LENGTH_SHORT).show()
+            }
+        )
+        queue.add(peticioPost)
+    }
+
+    // --- HELPER: LOADING STATE ---
+    private fun setLoading(isLoading: Boolean) {
+        if (isLoading) {
+            progressBar.visibility = View.VISIBLE
+            // Optionally hide the FAB while loading
+            fabAdd.hide()
+        } else {
+            progressBar.visibility = View.GONE
+            fabAdd.show()
+        }
     }
 }
